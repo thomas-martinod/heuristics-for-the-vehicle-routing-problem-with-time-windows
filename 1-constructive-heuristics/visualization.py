@@ -23,7 +23,7 @@ def plot_routes(routes):
     plt.grid(True)
     plt.legend()
 
-def save_routes_plot_in_folder(routes, filename, folder="figures/grasp"):
+def save_routes_plot_in_folder(routes, filename, folder):
     # Ensure the 'figures/constructive' folder exists
     if not os.path.exists(folder):
         os.makedirs(folder)

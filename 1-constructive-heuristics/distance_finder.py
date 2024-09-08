@@ -20,3 +20,14 @@ def calculate_route_distance(route, times):
 
 def calculate_total_distance(routes, times):
     return sum(calculate_route_distance(route, times) for route in routes)
+
+def calculate_min_max_times(nodes):
+    # Obtener los valores mínimos y máximos de los límites inferiores (inf) y superiores (sup)
+    min_inf = min(node.inf for node in nodes)
+    max_inf = max(node.inf for node in nodes)
+    min_sup = min(node.sup for node in nodes)
+    max_sup = max(node.sup for node in nodes)
+    return min_inf, max_inf, min_sup, max_sup
+
+def calculate_min_max_distances(times):
+    return min(min(row) for row in times), max(max(row) for row in times)

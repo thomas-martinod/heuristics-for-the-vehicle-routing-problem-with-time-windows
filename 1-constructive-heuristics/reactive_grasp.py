@@ -1,9 +1,14 @@
 import random
 import numpy as np
-from distance_finder import calculate_total_distance
+from distance_finder import calculate_total_distance, calculate_min_max_times, calculate_min_max_distances
 from feasibility import is_feasible
 
 random.seed(15)
+
+c_distance = 0.5
+c_inf = 0.4
+c_sup = 0.1
+
 
 def reactive_grasp_route_selection(nodes, capacity, times, alphas = list(np.arange(0.03, 0.3, 0.1)), iterations=100):
     alpha_probs = {alpha: 1/len(alphas) for alpha in alphas}  # Initialize probabilities for each alpha
@@ -12,6 +17,9 @@ def reactive_grasp_route_selection(nodes, capacity, times, alphas = list(np.aran
     min_prob = 1e-6  # Minimum threshold for probabilities
 
     for _ in range(iterations):
+        min_inf, max_inf, min_sup, max_sup = calculate_min_max_times(nodes)
+        min_time, max_time = calculate_min_max_distances(times)
+
         # Choose an alpha based on the probabilities
         alpha = random.choices(list(alpha_probs.keys()), weights=alpha_probs.values())[0]
         depot = nodes[0]
@@ -30,7 +38,12 @@ def reactive_grasp_route_selection(nodes, capacity, times, alphas = list(np.aran
                     break
 
                 # Sort by distance to the current node and form the RCL
-                feasible_customers.sort(key=lambda x: times[route[-1].index][x.index])
+                feasible_customers.sort(key=lambda x:
+                    c_distance * (times[route[-1].index][x.index] - min_time) / (max_time - min_time) +  # Normalizamos la distancia
+                    c_inf * (x.inf - min_inf) / (max_inf - min_inf) +  # Normalizamos el límite inferior
+                    c_sup * (x.sup - min_sup) / (max_sup - min_sup))   # Normalizamos el límite superior
+
+
                 rcl_size = max(1, int(len(feasible_customers) * alpha))
                 rcl = feasible_customers[:rcl_size]
 
