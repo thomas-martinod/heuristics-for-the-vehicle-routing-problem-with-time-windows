@@ -7,8 +7,8 @@ import random
 import time
 
 
-directory_path = 'VVRTPW/1-greedy'
-output_filename = "VRPTW_Reactive_GRASP_JuanFernando_Constructivo.xlsx"
+instance_path = "VRPTW Instances/VRPTW1.txt"
+output_filename = "greedy-solutions.xlsx"
 
 class Node:
     def __init__(self, index, x, y, q, inf, sup, t_serv):
@@ -20,55 +20,53 @@ class Node:
         self.sup = sup
         self.t_serv = t_serv
 
-    def get_index(self):
-        return f"Node <{self.index}>"
-
-
 
 def read_files(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
 
-        # Read n an Q
         first_line = lines[0].strip().split()
         n = int(first_line[0])
         Q = int(first_line[1])
 
-        nodes = []
-
-        # Read the n+1 next lines for index (i), x and y coordinate (x_i, y_i),
-        # demand (q_i), Lower and upper limit for time window (e_i),(l_i),
-        # and time service (s_i)
+        node_set = []
 
         for line in lines[1:]:
             parts = list(map(int, line.strip().split()))
             node = Node(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[6])
-            nodes.append(node)
-    return n, Q, nodes
+            node_set.append(node)
+    return n, Q, node_set
 
 
 
-'''
-## Time of travel (Define by Euclidean Distance)
-## Function given by teacher at [1]
-def euclidean_distance(node1, node2):
-    return round(math.sqrt((node1.x_cord - node2.x_cord) ** 2 + (node1.y_cord - node2.y_cord) ** 2), 3)
+def dist(n1, n2):
+    return math.sqrt((n1.x - n2.x)**2 + (n1.y - n2.y)**2)
 
-## Function to calculate time travel (t_(i,j))
-## Function given by teacher at [1]
+
+
 def calculate_travel_times(nodes):
     n = len(nodes)
     times = np.zeros((n, n))
     for i in range(n):
         for j in range(n):
-            times[i][j] = euclidean_distance(nodes[i], nodes[j])
+            times[i][j] = dist(nodes[i], nodes[j])
     return times
 
-## Restrictions (CONSTRUCTIVE METHOD)
+
+n, Q, nodes = read_files(instance_path)
+times = calculate_travel_times(nodes)
+print(times[4][9])
+
+
+
+
+
+
+'''
 def is_feasible(route, new_node, capacity, times):
     ## This restricition ensure not to exceed capacity
 
-    total_demand = sum(node.demand for node in route) + new_node.demand
+    total_demand = sum(node.q for node in route) + new_node.q
     if total_demand > capacity:
         return False
 
@@ -76,12 +74,13 @@ def is_feasible(route, new_node, capacity, times):
     current_time = 0
     for i in range(1, len(route)):
         current_time += times[route[i-1].index][route[i].index]
-        if current_time < route[i].time_window[0]:
+        if current_time < route[i].inf:
             current_time = route[i].time_window[0]
         if current_time > route[i].time_window[1]:
             return False
         current_time += route[i].serv_time
     return True
+
 
 # Función para seleccionar rutas usando GRASP Reactivo
 
@@ -249,9 +248,4 @@ def vrptw_solver(directory_path, output_filename):
     print(f"Tiempo total de ejecución: {elapsed_time:.4f} segundos")
     
 '''
-
-
-directory_path = r'D:\UNIVERSIDAD\OCTAVO SEMESTRE\Heuristica\Trabajo 1\Examples'
-output_filename = "VRPTW_Reactive_GRASP_JuanFernando_Constructivo.xlsx"
-vrptw_solver(directory_path, output_filename)
 
