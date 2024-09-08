@@ -23,16 +23,15 @@ def plot_routes(routes):
     plt.grid(True)
     plt.legend()
 
-def save_routes_plot_in_folder(routes, filename, folder="figures/constructive"):
+def save_routes_plot_in_folder(routes, filename, folder="figures/grasp"):
     # Ensure the 'figures/constructive' folder exists
     if not os.path.exists(folder):
         os.makedirs(folder)
 
     # Plot the routes (using your existing plot function but without showing the plot)
     plot_routes(routes)
-    
+
     # Save the plot to the specified folder and close the plot window
     filepath = os.path.join(folder, filename)
     plt.savefig(filepath)
     plt.close()
-    print(f"Figure saved to {filepath}")
