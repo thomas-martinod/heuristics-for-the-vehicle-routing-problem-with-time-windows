@@ -4,69 +4,64 @@ import numpy as np
 import matplotlib.pyplot as plt
 from openpyxl import Workbook
 import random
-import time
+import time 
 
 
-instance_path = "VRPTW Instances/VRPTW1.txt"
-output_filename = "greedy-solutions.xlsx"
+class Nodo:
 
-class Node:
-    def __init__(self, index, x, y, q, inf, sup, t_serv):
+    def __init__(self, index, x_cord, y_cord, demand, inflim, suplim, serv):
         self.index = index
-        self.x = x
-        self.y = y
-        self.q = q
-        self.inf = inf
-        self.sup = sup
-        self.t_serv = t_serv
+        self.x_cord = x_cord
+        self.y_cord = y_cord
+        self.demand = demand
+        self.time_window = (inflim, suplim)
+        self.serv_time = serv
 
-
-def read_files(file_path):
+    def __repr__(self):
+        return f"Customer <{self.index}>"
+## Function to read the 18 .txt files (example problems with different properties)
+def read_txt_file(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
 
+        # Read n an Q
         first_line = lines[0].strip().split()
         n = int(first_line[0])
         Q = int(first_line[1])
 
-        node_set = []
+        nodes = []
 
-        for line in lines[1:]:
+        # Read the n+1 next lines for index (i), x and y coordinate (x_i, y_i),
+        # demand (q_i), Lower and upper limit for time window (e_i),(l_i),
+        # and time service (s_i)
+        
+        for line in lines[1:n+2]: 
             parts = list(map(int, line.strip().split()))
-            node = Node(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[6])
-            node_set.append(node)
-    return n, Q, node_set
+            node = Nodo(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[6])
+            nodes.append(node)
+    return n, Q, nodes
 
 
+## Time of travel (Define by Euclidean Distance)
+## Function given by teacher at [1]
+def euclidean_distance(node1, node2):
+    return round(math.sqrt((node1.x_cord - node2.x_cord) ** 2 + (node1.y_cord - node2.y_cord) ** 2), 3)
 
-def dist(n1, n2):
-    return math.sqrt((n1.x - n2.x)**2 + (n1.y - n2.y)**2)
-
-
-
+## Function to calculate time travel (t_(i,j))
+## Function given by teacher at [1]
 def calculate_travel_times(nodes):
     n = len(nodes)
     times = np.zeros((n, n))
     for i in range(n):
         for j in range(n):
-            times[i][j] = dist(nodes[i], nodes[j])
+            times[i][j] = euclidean_distance(nodes[i], nodes[j])
     return times
 
-
-n, Q, nodes = read_files(instance_path)
-times = calculate_travel_times(nodes)
-print(times[4][9])
-
-
-
-
-
-
-'''
+## Restrictions (CONSTRUCTIVE METHOD)
 def is_feasible(route, new_node, capacity, times):
     ## This restricition ensure not to exceed capacity
 
-    total_demand = sum(node.q for node in route) + new_node.q
+    total_demand = sum(node.demand for node in route) + new_node.demand
     if total_demand > capacity:
         return False
 
@@ -74,13 +69,12 @@ def is_feasible(route, new_node, capacity, times):
     current_time = 0
     for i in range(1, len(route)):
         current_time += times[route[i-1].index][route[i].index]
-        if current_time < route[i].inf:
+        if current_time < route[i].time_window[0]:
             current_time = route[i].time_window[0]
         if current_time > route[i].time_window[1]:
             return False
         current_time += route[i].serv_time
     return True
-
 
 # Función para seleccionar rutas usando GRASP Reactivo
 
@@ -247,5 +241,10 @@ def vrptw_solver(directory_path, output_filename):
     elapsed_time = end_time - start_time 
     print(f"Tiempo total de ejecución: {elapsed_time:.4f} segundos")
     
-'''
+
+
+
+directory_path = 'VRPTW Instances'
+output_filename = "VRPTW_Reactive_GRASP_JuanFernando_Constructivo.xlsx"
+vrptw_solver(directory_path, output_filename)
 
