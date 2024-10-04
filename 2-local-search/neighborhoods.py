@@ -1,5 +1,6 @@
 from feasibility import is_feasible, is_time_feasible
-from distance_finder import calculate_route_distance
+from distance_finder import calculate_route_distance, calculate_total_distance
+
 
 # -----------------------------------------------------------------------------------------------------------
 # Interchange two positions
@@ -64,15 +65,17 @@ def three_opt(x_dict, distances):
     for i in range(1, R-1):
         for j in range(i+1, R-1):
             for k in range(j+1, R-1):
-                candidates = generate_three_opt_candidates(x, i, j, k)
+                candidates = generate_three_opt_candidates(x.copy(), i, j, k)
                 for candidate in candidates:
                     # Ensure the last node (zero) is not moved
                     if candidate[-1] != 0:
                         continue  # Skip this candidate if the last element is not zero
 
                     if is_time_feasible(candidate, distances):
+                        print(2)
                         if calculate_route_distance(candidate, distances) < calculate_route_distance(best, distances):
                             best = candidate  # Update the best route if candidate is better
+                            print(1)
 
     # Update the x_dict with the best solution found
     x_dict['route_objects'] = best
@@ -171,94 +174,101 @@ def length_L_reinsertion(all_routes, capacity, distances, L=2):
 # Destruir una ruta a la fuerza
 
 
-def destroy_route(all_routes, max_capacity, distances):
-    # Sort routes by number of nodes first, then by capacity
-    sorted_routes = sort_by_number_of_nodes_and_capacity(all_routes)
-    # Select the shortest route (excluding the zeros at the start and end)
-    route_to_destroy = sorted_routes[0]['route_objects'][1:-1]  # Shortest route without the zeros
-    original_routes = sorted_routes[1:]  # Remove the route to be destroyed from the list
-    # Sort the remaining routes by current capacity
-    sorted_routes = sort_by_capacity(original_routes)
+# def destroy_route(all_routes, max_capacity, distances):
+#     # Hacemos una copia de las rutas ordenadas para no modificar el original
+#     sorted_routes = sort_by_number_of_nodes_and_capacity(all_routes)
+#     original_routes = sorted_routes.copy()
 
-    inserted_nodes = []
-    # Iterate over the nodes in the route to be destroyed
-    for node in route_to_destroy:
-        node_inserted = False
-        # Try to insert the node into the remaining routes
-        for i in range(len(sorted_routes)):
-            if node_inserted:
-                break
-            current_route = sorted_routes[i]['route_objects'].copy()  # Take a copy of the current route
-            # Iterate over valid positions to insert (without touching the zeros)
-            for k in range(1, len(current_route)):
-                # Create a temporary copy of the route to test the insertion
-                temp_route = current_route[:k] + [node] + current_route[k:]
-                # Check if the new route is feasible (capacity and other constraints)
-                if is_feasible(temp_route, max_capacity, distances):
-                    # Mark the node as inserted and update the route
-                    node_inserted = True
-                    sorted_routes[i]['route_objects'] = temp_route  # Update the route
-                    inserted_nodes.append(node)
-                    break  # Exit the position loop since the node was inserted
-        if not node_inserted:
-            # If we can't insert a node, we need to revert all changes
-            for inserted_node in inserted_nodes:
-                for route in sorted_routes:
-                    if inserted_node in route['route_objects']:
-                        route['route_objects'].remove(inserted_node)
-            return all_routes  # Return the original routes if we can't insert all nodes
+#     # Iteramos sobre las rutas que vamos a intentar destruir
+#     for i in range(len(sorted_routes)):
+#         # Seleccionamos la ruta a destruir (sin los ceros al inicio y final)
+#         route_to_destroy = sorted_routes[i]['route_objects'][1:-1]
+#         remaining_routes = sorted_routes[:i] + sorted_routes[i+1:]  # Rutas restantes
 
-    # Sort routes by their original index before returning
-    sorted_routes = sort_by_index(sorted_routes)
-    # If we managed to insert all nodes, return the new routes
-    return sorted_routes
+#         # Intentamos insertar los nodos de la ruta a destruir
+#         while route_to_destroy:
+#             node = route_to_destroy[0]  # Tomamos el primer nodo de la ruta a destruir
+#             node_inserted = False
+            
+#             # Intentamos insertar el nodo en alguna de las rutas restantes
+#             for j in range(len(remaining_routes)):
+#                 current_route = remaining_routes[j]['route_objects'].copy()
+                
+#                 # Buscamos la posición donde podemos insertar el nodo sin alterar los ceros
+#                 for k in range(1, len(current_route)):
+#                     temp_route = current_route[:k] + [node] + current_route[k:]
+#                     if is_feasible(temp_route, max_capacity, distances):
+#                         # Si es factible, insertamos el nodo y lo quitamos de route_to_destroy
+#                         remaining_routes[j]['route_objects'] = temp_route  # Actualizamos la ruta
+#                         route_to_destroy.pop(0)  # Quitamos el nodo ya insertado
+#                         node_inserted = True
+#                         break  # Salimos del ciclo de posiciones
+                
+#                 if node_inserted:
+#                     break  # Si el nodo fue insertado, pasamos al siguiente nodo
+            
+#             # Si no se pudo insertar el nodo en ninguna ruta, devolvemos las rutas originales
+#             if not node_inserted:
+#                 break  # Salimos del ciclo, ya que no se pudo insertar el nodo
+        
+#         # Si todos los nodos de la ruta se insertaron correctamente, devolvemos las rutas actualizadas
+#         if not route_to_destroy:
+#             # Actualizamos las rutas en sorted_routes de forma correcta
+#             sorted_routes[i] = remaining_routes[0]  # Reemplazamos la ruta destruida con la primera de remaining_routes
+#             sorted_routes[i+1:] = remaining_routes[1:]  # Actualizamos el resto de las rutas
+#             sorted_routes = sort_by_index(sorted_routes)
+#             return sorted_routes
+
+#     # Si no se pudo insertar ninguna ruta a destruir, devolvemos las rutas originales
+#     return original_routes
 
 
-# The other helper functions remain the same
-def sort_by_number_of_nodes_and_capacity(arr):
-    return sorted(arr, key=lambda x: (len(x['route_objects']), x['total_capacity_used']))
+# # The other helper functions remain the same
+# def sort_by_number_of_nodes_and_capacity(arr):
+#     return sorted(arr, key=lambda x: (len(x['route_objects']), x['total_capacity_used']))
 
-def sort_by_capacity(arr):
-    return sorted(arr, key=lambda x: x['total_capacity_used'])
+# def sort_by_capacity(arr):
+#     return sorted(arr, key=lambda x: x['total_capacity_used'])
 
-def sort_by_index(arr):
-    return sorted(arr, key=lambda x: x['route_indexes'])
+# def sort_by_index(arr):
+#     return sorted(arr, key=lambda x: x['route_indexes'])
+
 
 
 
 # -----------------------------------------------------------------------------------------------------------
-# VND
+# VND (para el trabajo 3)
 
-def VND(initial_sln, Q, distances):
-    s = initial_sln  # Original solution
-    while True:
-        # Start by making a copy of the current solution
-        s_prime = s.copy()
+# def VND(initial_sln, Q, distances):
+#     s = initial_sln  # Original solution
+#     while True:
+#         # Start by making a copy of the current solution
+#         s_prime = s.copy()
 
-        # Step 1: Apply destroy_route (or similar local search function)
-        # s_prime = destroy_route(s_prime, Q, distances)  # Apply the destroy_route function
+#         # Step 1: Apply destroy_route (or similar local search function)
+#         # s_prime = destroy_route(s_prime, Q, distances)  # Apply the destroy_route function
 
-        # Step 2: Interchange two positions
-        temp_s = [interchange_two_positions(route, distances) for route in s_prime.copy()]  # New copy before the operation
-        if temp_s == s_prime:
-            # Step 3: Try two-opt
-            temp_s = [two_opt(route, distances) for route in s_prime.copy()]  # New copy before the operation
-            if temp_s == s_prime:
-                # Step 4: Try length-L reinsertion (L = 3 in this case)
-                temp_s = length_L_reinsertion(s_prime.copy(), Q, distances, 3)  # New copy before the operation
-                if temp_s == s_prime:
-                    # Step 5: Try 3-opt
-                    temp_s = [three_opt(route, distances) for route in s_prime.copy()]  # New copy before the operation
-                    if temp_s == s_prime:  # If no improvement after 3-opt
-                        return s  # Return the original solution as it can't be improved
-                    else:
-                        s = temp_s.copy()  # Update the solution with the improved one
-                else:
-                    s = temp_s.copy()  # Update the solution with the improved one
-            else:
-                s = temp_s.copy()  # Update the solution with the improved one
-        else:
-            s = temp_s.copy()  # Update the solution with the improved one
+#         # Step 2: Interchange two positions
+#         temp_s = [interchange_two_positions(route, distances) for route in s_prime.copy()]  # New copy before the operation
+#         if temp_s == s_prime:
+#             # Step 3: Try two-opt
+#             temp_s = [two_opt(route, distances) for route in s_prime.copy()]  # New copy before the operation
+#             if temp_s == s_prime:
+#                 # Step 4: Try length-L reinsertion (L = 3 in this case)
+#                 temp_s = length_L_reinsertion(s_prime.copy(), Q, distances, 3)  # New copy before the operation
+#                 if temp_s == s_prime:
+#                     # Step 5: Try 3-opt
+#                     temp_s = [three_opt(route, distances) for route in s_prime.copy()]  # New copy before the operation
+#                     if temp_s == s_prime:  # If no improvement after 3-opt
+#                         return s  # Return the original solution as it can't be improved
+#                     else:
+#                         s = temp_s.copy()  # Update the solution with the improved one
+#                 else:
+#                     s = temp_s.copy()  # Update the solution with the improved one
+#             else:
+#                 s = temp_s.copy()  # Update the solution with the improved one
+#         else:
+#             s = temp_s.copy()  # Update the solution with the improved one
 
 
 
