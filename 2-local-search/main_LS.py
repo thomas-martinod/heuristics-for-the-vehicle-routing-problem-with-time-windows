@@ -10,7 +10,7 @@ from openpyxl import Workbook
 
 
 initial_method = 'ACO'                                # Select between 'constructive', 'GRASP' or 'ACO'
-neighborhood_method = 'Change2Indexes'                  # Select between 'Change2Indexes', '2-opt', '3-opt', 'length_L_reinsertion', destroy_route', 'VND'
+neighborhood_method = 'length_L_reinsertion'                  # Select between 'Change2Indexes', '2-opt', '3-opt', 'length_L_reinsertion', destroy_route', 'VND'
 
 instances_directory_path = 'VRPTW Instances'
 excel_path = f'C:\\Users\\thomm\\Documents\\GitHub\\heuristica\\2-local-search\\local-search-results\\{initial_method}\\VRTPW_tm_{initial_method}_LS_{neighborhood_method}.xlsx'
