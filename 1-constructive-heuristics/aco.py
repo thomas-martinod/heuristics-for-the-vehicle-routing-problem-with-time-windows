@@ -4,7 +4,7 @@ import math
 import numpy as np
 from scipy.sparse.csgraph import minimum_spanning_tree
 from openpyxl import Workbook
-from distance_finder import travel_times_matrix, calculate_total_distance
+from distance_finder import distance_matrix_generator, calculate_total_distance
 from feasibility import is_feasible
 from file_reader import read_txt_file
 from file_writer import save_to_excel
@@ -172,7 +172,7 @@ def vrptw_solver(directory_path, output_filename):
 
         # Read the instance file and calculate the travel times
         n, Q, nodes = read_txt_file(filename)
-        times = travel_times_matrix(nodes)
+        times = distance_matrix_generator(nodes)
 
         depot = nodes[0]
         customers = nodes[1:]

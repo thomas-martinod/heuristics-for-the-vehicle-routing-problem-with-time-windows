@@ -4,7 +4,7 @@ import math
 import numpy as np
 from scipy.sparse.csgraph import minimum_spanning_tree  # Used for calculating the MST lower bound
 from openpyxl import Workbook  # Used to write results to Excel
-from distance_finder import travel_times_matrix, calculate_total_distance  # Functions to handle travel distances
+from distance_finder import distance_matrix_generator, calculate_total_distance  # Functions to handle travel distances
 from file_reader import read_txt_file  # Function to read data from the problem instance files
 from file_writer import save_to_excel  # Function to write results into an Excel file
 from visualization import save_routes_plot_in_folder  # Function to visualize and save routes
@@ -64,7 +64,7 @@ def vrptw_solver(directory_path, output_filename):
 
         # Read the number of customers (n), vehicle capacity (Q), and nodes from the file
         n, Q, nodes = read_txt_file(filename)
-        times = travel_times_matrix(nodes)  # Calculate travel time matrix
+        times = distance_matrix_generator(nodes)  # Calculate travel time matrix
 
         depot = nodes[0]  # First node is the depot
         customers = nodes[1:]  # All other nodes are customers

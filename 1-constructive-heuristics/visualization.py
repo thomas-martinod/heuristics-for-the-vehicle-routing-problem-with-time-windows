@@ -2,9 +2,15 @@ import os
 import matplotlib.pyplot as plt
 
 def plot_routes(routes):
+
+    plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "serif",
+    "font.serif": ["Computer Modern Roman"]})
+
+
     plt.figure(figsize=(8, 8))
 
-    # Iterate through each route to plot
     for i, route in enumerate(routes):
         x_coords = [node.x for node in route]
         y_coords = [node.y for node in route]
@@ -14,14 +20,16 @@ def plot_routes(routes):
 
         # Annotate the node numbers (customers)
         for node in route:
-            plt.text(node.x, node.y, f'{node.index}', fontsize=12, ha='right')
+            plt.text(node.x, node.y, f'{node.index}', fontsize=8, ha='right')
 
     # Configure the graph
     plt.title('Visualization of VRPTW Routes')
-    plt.xlabel('X Coordinate')
-    plt.ylabel('Y Coordinate')
+    plt.xlabel('$x$ (m)')
+    plt.ylabel('$y$ (m)')
     plt.grid(True)
     plt.legend()
+
+
 
 def save_routes_plot_in_folder(routes, filename, folder):
     # Ensure the folder exists (create it if it doesn't)
