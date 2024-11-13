@@ -1,5 +1,5 @@
 # Function to save the results of the vehicle routes to an Excel sheet
-def save_to_excel(workbook, sheet_name, routes, total_distance, computation_time, times):
+def save_to_excel(workbook, sheet_name, routes, total_distance, computation_time, distances):
     # Create a new sheet in the workbook with the provided sheet name
     ws = workbook.create_sheet(title=sheet_name)
 
@@ -19,7 +19,7 @@ def save_to_excel(workbook, sheet_name, routes, total_distance, computation_time
         # Iterate over each node in the route (excluding the depot at the start)
         for j in range(1, len(route)):
             # Add the travel time between consecutive nodes
-            current_time += times[route[j-1].index][route[j].index]
+            current_time += distances[route[j-1].index][route[j].index]
 
             # If the vehicle arrives before the time window starts, wait until the earliest time
             if current_time < route[j].inf:

@@ -1,160 +1,144 @@
 import gurobipy as gp
 from gurobipy import GRB
 from file_reader import read_txt_file
+from file_writer import save_to_excel
 import math
+import utilities as ut
+import openpyxl
+import time
 
-# Cargar datos desde el archivo
-file_path = 'VRPTW Instances/VRPTW17.txt'  # Cambia esto por la ruta a tu archivo de entrada
-n, Q, nodes = read_txt_file(file_path)
+# Directorio de las instancias
+instances_directory_path = 'VRPTW Instances'
+# Ruta de salida para el archivo Excel de resultados
+excel_path = '5-gurobi-optimal-solutions/gurobi-results/gurobi-results.xlsx'
 
-# Determinar el número inicial de vehículos necesario
-total_demand = sum(node.q for node in nodes if node.index != 0)
-K = math.ceil(total_demand / Q) # Número inicial de vehículos
+# Crear el archivo de Excel donde se guardarán los resultados
+workbook = openpyxl.Workbook()
+workbook.remove(workbook.active)  # Elimina la hoja vacía inicial
 
-# Definir parámetros y variables
-depot = 0
-customers = [node.index for node in nodes if node.index != depot]
-locations = [node.index for node in nodes]
-connections = [(i, j) for i in locations for j in locations if i != j]
+for file_index in range(1, 2):  # Itera sobre los 18 archivos
+    # Configuración de la instancia
+    sheet_name = f'VRPTW{file_index}'
+    file_path = f'{instances_directory_path}/{sheet_name}.txt'
+    n, Q, nodes = read_txt_file(file_path)
 
-# Diccionario de costos de distancia euclidiana entre nodos
-coords = {node.index: (node.x, node.y) for node in nodes}
-costs = {
-    (i, j): ((coords[i][0] - coords[j][0])**2 + (coords[i][1] - coords[j][1])**2)**0.5
-    for i, j in connections
-}
+    # Crear un diccionario que mapea los índices de los nodos a objetos Node
+    nodes_dict = {node.index: node for node in nodes}
 
-# Crear modelo para VRPTW
-model = gp.Model("VRPTW")
+    # Determinar cotas para el número de vehículos
+    total_demand = sum(node.q for node in nodes if node.index != 0)
+    K_min = math.ceil(total_demand / Q)  # Cota inferior
+    K_max = n  # Cota superior
 
-# Variables de decisión
-x = model.addVars(connections, range(1, K + 1), vtype=GRB.BINARY, name="x")  # x[i, j, k] = 1 si el vehículo k viaja de i a j
-y = model.addVars(locations, range(1, K + 1), vtype=GRB.BINARY, name="y")    # y[i, k] = 1 si el vehículo k sirve al cliente i
-t = model.addVars(locations, name="t")                                        # t[j] es el tiempo de llegada al nodo j
-w = model.addVars(customers, lb=0, name="w")                                  # Tiempo de espera en cada cliente
+    # Definir parámetros y variables constantes
+    depot = 0
+    customers = [node.index for node in nodes if node.index != depot]
+    locations = [node.index for node in nodes]
+    connections = [(i, j) for i in locations for j in locations if i != j]
 
-# Función objetivo: minimizar la distancia total recorrida
-distance_objective = gp.quicksum(costs[i, j] * x[i, j, k] for i, j in connections for k in range(1, K + 1))
-model.setObjective(distance_objective, GRB.MINIMIZE)
+    # Construir la matriz completa de distancias (distances)
+    num_nodes = len(nodes)
+    distances = [[0] * num_nodes for _ in range(num_nodes)]
+    coords = {node.index: (node.x, node.y) for node in nodes}
 
-# Restricciones
+    for i, j in connections:
+        distances[i][j] = ((coords[i][0] - coords[j][0])**2 + (coords[i][1] - coords[j][1])**2)**0.5
 
-# 1. Restricción de entrada y salida para cada cliente
-model.addConstrs(
-    (gp.quicksum(x[i, j, k] for i in locations if i != j) == y[j, k]
-     for j in customers for k in range(1, K + 1)),
-    name="entrada"
-)
+    # Bucle para encontrar el mínimo valor de K que produce una solución factible
+    K = K_min
+    solution_found = False
 
-model.addConstrs(
-    (gp.quicksum(x[i, j, k] for j in locations if i != j) == y[i, k]
-     for i in customers for k in range(1, K + 1)),
-    name="salida"
-)
+    while K <= K_max and not solution_found:
+        # Crear modelo para VRPTW
+        model = gp.Model("VRPTW")
 
-# Nueva restricción: Cada vehículo puede salir del depósito solo una vez
-model.addConstrs(
-    (gp.quicksum(x[depot, j, k] for j in customers) <= 1 for k in range(1, K + 1)),
-    name="salida_unica_deposito"
-)
+        # Desactivar la salida de Gurobi
+        model.setParam('OutputFlag', 0)
 
-# Nueva restricción: Cada vehículo debe regresar al depósito solo una vez
-model.addConstrs(
-    (gp.quicksum(x[i, depot, k] for i in customers) <= 1 for k in range(1, K + 1)),
-    name="retorno_unico_deposito"
-)
+        # Variables de decisión
+        x = model.addVars(connections, range(1, K + 1), vtype=GRB.BINARY, name="x")
+        y = model.addVars(locations, range(1, K + 1), vtype=GRB.BINARY, name="y")
+        t = model.addVars(locations, name="t")
+        w = model.addVars(customers, lb=0, name="w")
 
-# 2. Restricción de unicidad: cada cliente debe ser atendido por exactamente un vehículo
-model.addConstrs(
-    (gp.quicksum(y[i, k] for k in range(1, K + 1)) == 1 for i in customers),
-    name="unicidad"
-)
+        # Función objetivo: minimizar la distancia total recorrida
+        distance_objective = gp.quicksum(distances[i][j] * x[i, j, k] for i, j in connections for k in range(1, K + 1))
+        model.setObjective(distance_objective, GRB.MINIMIZE)
 
-# 3. Restricción de capacidad: la carga total de cada vehículo no debe exceder su capacidad
-model.addConstrs(
-    (gp.quicksum(y[i, k] * nodes[i].q for i in locations) <= Q for k in range(1, K + 1)),
-    name="capacidad"
-)
+        # Agregar restricciones
+        model.addConstrs(
+            (gp.quicksum(x[i, j, k] for i in locations if i != j) == y[j, k]
+             for j in customers for k in range(1, K + 1)),
+            name="entrada"
+        )
+        model.addConstrs(
+            (gp.quicksum(x[i, j, k] for j in locations if i != j) == y[i, k]
+             for i in customers for k in range(1, K + 1)),
+            name="salida"
+        )
+        model.addConstrs(
+            (gp.quicksum(x[depot, j, k] for j in customers) <= 1 for k in range(1, K + 1)),
+            name="salida_unica_deposito"
+        )
+        model.addConstrs(
+            (gp.quicksum(x[i, depot, k] for i in customers) <= 1 for k in range(1, K + 1)),
+            name="retorno_unico_deposito"
+        )
+        model.addConstrs(
+            (gp.quicksum(y[i, k] for k in range(1, K + 1)) == 1 for i in customers),
+            name="unicidad"
+        )
+        model.addConstrs(
+            (gp.quicksum(y[i, k] * nodes[i].q for i in locations) <= Q for k in range(1, K + 1)),
+            name="capacidad"
+        )
+        model.addConstr(
+            gp.quicksum(y[depot, k] for k in range(1, K + 1)) == K,
+            name="inicio_deposito"
+        )
+        model.addConstrs(
+            (t[i] + nodes[i].t_serv + distances[i][j] <= t[j] + (1 - x[i, j, k]) * 1e6
+             for i in locations for j in customers for k in range(1, K + 1) if i != j),
+            name="tiempo_ventanas"
+        )
+        model.addConstrs(
+            (nodes[j].inf <= t[j] for j in customers),
+            name="ventana_inicio"
+        )
+        model.addConstrs(
+            (t[j] <= nodes[j].sup for j in customers),
+            name="ventana_fin"
+        )
+        model.addConstrs(
+            (w[j] >= nodes[j].inf - (t[i] + nodes[i].t_serv + distances[i][j]) * x[i, j, k]
+             for i in locations for j in customers for k in range(1, K + 1) if i != j),
+            name="tiempo_espera"
+        )
 
-# 4. Restricción de inicio en el depósito: cada vehículo debe partir del depósito
-model.addConstr(
-    gp.quicksum(y[depot, k] for k in range(1, K + 1)) == K,
-    name="inicio_deposito"
-)
+        # Calcular el tiempo de optimización
+        start_time = time.time()
+        model.optimize()
+        computation_time = time.time() - start_time
 
-# 5. Restricciones de tiempo entre clientes
-model.addConstrs(
-    (t[i] + nodes[i].t_serv + costs[i, j] <= t[j] + (1 - x[i, j, k]) * 1e6
-     for i in locations for j in customers for k in range(1, K + 1) if i != j),
-    name="tiempo_ventanas"
-)
+        # Verificar si se encontró una solución factible
+        if model.status == GRB.OPTIMAL:
+            solution_found = True
+            print(f'Solución encontrada con K = {K} para {sheet_name}')
 
-# 6. Restricción de ventanas de tiempo para cada cliente
-model.addConstrs(
-    (nodes[j].inf <= t[j] for j in customers),
-    name="ventana_inicio"
-)
+            # Recuperar las rutas y calcular la distancia total
+            routes = ut.extract_routes(model, x, locations, K, depot, nodes_dict)
+            total_distance = model.objVal
 
-model.addConstrs(
-    (t[j] <= nodes[j].sup for j in customers),
-    name="ventana_fin"
-)
+            # Guardar los resultados en el archivo Excel
+            save_to_excel(workbook, sheet_name, routes, total_distance, computation_time, distances)
+        else:
+            print(f'No se encontró solución factible con K = {K} para {sheet_name}. Intentando con K = {K + 1}')
+            K += 1
 
-# 7. Restricción de tiempo de espera
-model.addConstrs(
-    (w[j] >= nodes[j].inf - (t[i] + nodes[i].t_serv + costs[i, j]) * x[i, j, k]
-     for i in locations for j in customers for k in range(1, K + 1) if i != j),
-    name="tiempo_espera"
-)
+    # Mensaje en caso de no encontrar solución para la instancia actual
+    if not solution_found:
+        print(f"No se encontró solución óptima para {sheet_name} en el rango de K especificado.")
 
-# Optimizar el modelo
-model.optimize()
-
-print('Optimización completada')
-
-# # Imprimir las conexiones activas como paso de depuración
-# print("Conexiones activas en la solución óptima:")
-# for (i, j, k) in x.keys():
-#     if x[i, j, k].X > 0.5:
-#         print(f"Vehículo {k} viaja de {i} a {j}")
-
-# Imprimir solución de rutas
-if model.status == GRB.OPTIMAL:
-    rutas = []
-    visitados = set([depot])  # Mantiene el registro de nodos visitados
-
-    for k in range(1, K + 1):  # Iterar para cada vehículo
-        ruta = [depot]
-        nodo_actual = depot
-
-        while len(visitados) < len(locations):  # Mientras no se hayan visitado todos los clientes
-            siguiente_nodo = None
-
-            # Buscar el siguiente nodo en la ruta para el vehículo k
-            for j in locations:
-                if (nodo_actual, j, k) in x and x[nodo_actual, j, k].X > 0.5 and j not in visitados:
-                    siguiente_nodo = j
-                    break
-
-            if siguiente_nodo is None:
-                # Si no se encuentra un siguiente nodo, el vehículo regresa al depósito y se termina la ruta actual
-                ruta.append(depot)
-                rutas.append(ruta)  # Guardar la ruta
-                break  # Salir del bucle para el vehículo k
-
-            # Agregar el siguiente nodo a la ruta y marcarlo como visitado
-            ruta.append(siguiente_nodo)
-            visitados.add(siguiente_nodo)
-            nodo_actual = siguiente_nodo
-
-        # Si todos los clientes ya fueron visitados y la ruta aún no ha regresado al depósito
-        if ruta[-1] != depot:
-            ruta.append(depot)
-            rutas.append(ruta)
-
-    # Mostrar cada ruta en el formato solicitado
-    for i, ruta in enumerate(rutas, start=1):
-        print(f"Ruta {i}: {' -> '.join(map(str, ruta))}")
-else:
-    print("No se encontró solución óptima.")
-
+# Guardar el archivo Excel con los resultados de todas las instancias
+workbook.save(excel_path)
+print(f"Resultados guardados en {excel_path}")
