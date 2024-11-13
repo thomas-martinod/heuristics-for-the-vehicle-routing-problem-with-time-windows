@@ -16,7 +16,6 @@ def last_index_not_NaN_of_row(arr):
     return -1           # There is a row in which there are not nan values
 
 
-
 def find_pair_of_zeros(arr):
     for i in range(len(arr) - 1):               # Loop until the second to last element
         if arr[i] == 0 and arr[i + 1] == 0:

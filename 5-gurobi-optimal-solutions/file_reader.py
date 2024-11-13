@@ -29,5 +29,7 @@ def read_txt_file(file_path):
             node = Node(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[6])
             nodes.append(node)
 
-        print(n, Q, nodes, len(nodes))
     return n, Q, nodes
+
+
+file_path = 'VRPTW Instances/VRPTW1.txt'  # Cambia esto por la ruta a tu archivo de entrada
