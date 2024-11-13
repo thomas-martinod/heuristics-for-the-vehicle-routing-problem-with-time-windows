@@ -10,13 +10,14 @@ import time
 # Directorio de las instancias
 instances_directory_path = 'VRPTW Instances'
 # Ruta de salida para el archivo Excel de resultados
-excel_path = '5-gurobi-optimal-solutions/gurobi-results/gurobi-results.xlsx'
+excel_path = '5-gurobi-optimal-solutions/gurobi-results/gurobi-results-12.xlsx'
 
 # Crear el archivo de Excel donde se guardarán los resultados
 workbook = openpyxl.Workbook()
 workbook.remove(workbook.active)  # Elimina la hoja vacía inicial
 
-for file_index in range(1, 2):  # Itera sobre los 18 archivos
+for file_index in range(12, 13):  # Itera sobre los 18 archivos
+    print(f'\nVamos con VRPTW{file_index}')
     # Configuración de la instancia
     sheet_name = f'VRPTW{file_index}'
     file_path = f'{instances_directory_path}/{sheet_name}.txt'
@@ -53,7 +54,7 @@ for file_index in range(1, 2):  # Itera sobre los 18 archivos
         model = gp.Model("VRPTW")
 
         # Desactivar la salida de Gurobi
-        model.setParam('OutputFlag', 0)
+        # model.setParam('OutputFlag', 0)
 
         # Variables de decisión
         x = model.addVars(connections, range(1, K + 1), vtype=GRB.BINARY, name="x")
@@ -118,7 +119,6 @@ for file_index in range(1, 2):  # Itera sobre los 18 archivos
         # Calcular el tiempo de optimización
         start_time = time.time()
         model.optimize()
-        computation_time = time.time() - start_time
 
         # Verificar si se encontró una solución factible
         if model.status == GRB.OPTIMAL:
@@ -128,11 +128,12 @@ for file_index in range(1, 2):  # Itera sobre los 18 archivos
             # Recuperar las rutas y calcular la distancia total
             routes = ut.extract_routes(model, x, locations, K, depot, nodes_dict)
             total_distance = model.objVal
+            computation_time = time.time() - start_time
 
             # Guardar los resultados en el archivo Excel
             save_to_excel(workbook, sheet_name, routes, total_distance, computation_time, distances)
         else:
-            print(f'No se encontró solución factible con K = {K} para {sheet_name}. Intentando con K = {K + 1}')
+            print(f'No se encontró solución factible con K = {K} para {sheet_name}')
             K += 1
 
     # Mensaje en caso de no encontrar solución para la instancia actual

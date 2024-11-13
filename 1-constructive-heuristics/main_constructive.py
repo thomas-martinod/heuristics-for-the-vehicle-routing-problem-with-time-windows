@@ -4,7 +4,7 @@ import math  # Mathematical functions like ceiling
 import numpy as np  # For numerical operations and matrix manipulation
 from scipy.sparse.csgraph import minimum_spanning_tree  # To compute the minimum spanning tree (MST)
 from openpyxl import Workbook  # To write results into Excel files
-from distance_finder import distance_matrix_generator, calculate_total_distance  # Helper functions to compute distances
+from distance_finder import travel_times_matrix, calculate_total_distance  # Helper functions to compute distances
 from feasibility import is_feasible  # Check feasibility of routes (capacity and time window constraints)
 from file_reader import read_txt_file  # Read the input data files
 from file_writer import save_to_excel  # Save results into an Excel file
@@ -16,9 +16,43 @@ c_inf = 0.4 # Weight for the lower time window bound (infeasible time)
 c_sup = 0.1  # Weight for the upper time window bound
 
 # Input and output file paths
-instances_directory_path = r'C:\Users\thomm\Documents\GitHub\heuristica\VRPTW Instances'  # Directory with the VRPTW problem instances
+directory_path = 'VRPTW Instances'  # Directory with the VRPTW problem instances
 output_filename = '1-constructive-heuristics/results/VRPTW_tm_constructive.xlsx'  # Output Excel file path
 
+# Function to calculate the lower bound on the number of routes
+def lower_bound_routes(customers, vehicle_capacity):
+    """
+    Calculate the lower bound on the number of routes based on total demand and vehicle capacity.
+    :param customers: List of customer nodes, each with a demand attribute.
+    :param vehicle_capacity: Maximum capacity of a single vehicle.
+    :return: Lower bound on the number of routes (vehicles).
+    """
+    total_demand = sum(customer.q for customer in customers)  # Sum all customer demands
+    return math.ceil(total_demand / vehicle_capacity)  # Calculate the minimum number of routes needed
+
+# Function to calculate the lower bound on the total distance using MST (Minimum Spanning Tree)
+def lower_bound_mst(depot, customers, distance_matrix):
+    """
+    Calculate the lower bound on the total distance using the Minimum Spanning Tree (MST).
+    :param depot: The depot node (starting point for all routes).
+    :param customers: List of customer nodes.
+    :param distance_matrix: Precomputed matrix of distances between nodes.
+    :return: Lower bound on the total distance using MST.
+    """
+    nodes = [depot] + customers  # Combine the depot and customer nodes to form the full graph
+    n = len(nodes)  # Total number of nodes
+
+    # Create a distance matrix for all nodes
+    full_matrix = np.zeros((n, n))
+    for i in range(n):
+        for j in range(n):
+            full_matrix[i, j] = distance_matrix[nodes[i].index][nodes[j].index]  # Fill the matrix with distances
+
+    # Compute the MST of the full graph and sum its edges to get the lower bound distance
+    mst = minimum_spanning_tree(full_matrix).toarray()
+    mst_distance = mst.sum()  # Total distance of the MST
+
+    return mst_distance  # Return the MST-based lower bound on total distance
 
 # Function to perform constructive route selection based on capacity and time windows
 def constructive_route_selection(nodes, capacity, times):
@@ -71,7 +105,7 @@ def vrptw_solver(directory_path, output_filename):
 
         # Read the number of nodes, vehicle capacity, and nodes (customers) from the file
         n, Q, nodes = read_txt_file(filename)
-        times = distance_matrix_generator(nodes)  # Calculate the travel time matrix
+        times = travel_times_matrix(nodes)  # Calculate the travel time matrix
 
         depot = nodes[0]  # The depot node
         customers = nodes[1:]  # List of customer nodes
@@ -124,4 +158,4 @@ def vrptw_solver(directory_path, output_filename):
     print(f"Mean GAP for distances (D): {mean_gap_d:.3f}%")
 
 # Run the solver function
-vrptw_solver(instances_directory_path, output_filename)
+vrptw_solver(directory_path, output_filename)
