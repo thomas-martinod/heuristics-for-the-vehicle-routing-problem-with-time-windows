@@ -87,18 +87,18 @@ def evaluate_population(population, times, Q):
     """
     fitness_values = []
     epsilon = 1e-6  # Pequeño valor para evitar división por cero y problemas numéricos
-    
+
     # Calcular el total_cost para cada individuo
     total_costs = []
     for individual in population:
         total_cost = calculate_total_cost(individual, times, alpha=alpha, beta=beta)  # Ajusta alpha y beta según sea necesario
         total_costs.append(total_cost)
-    
+
     # Encontrar el costo máximo y mínimo para normalizar
     max_cost = max(total_costs)
     min_cost = min(total_costs)
     cost_range = max_cost - min_cost + epsilon  # Añadimos epsilon para evitar división por cero si max_cost == min_cost
-    
+
     # Calcular el fitness normalizado inverso (mejor costo => mayor fitness)
     for total_cost in total_costs:
         # Normalizar el costo entre 0 y 1
@@ -219,15 +219,6 @@ def humble_constructive(nodes, capacity, times):
         routes.append(route)
     return routes
 
-
-def get_initial_solution(method, nodes, Q, distances, initial_solution_path, sheet_name):
-    # Obtener la solución inicial con adaptación de datos similar a `constructive`
-    if method == "humble":
-        return humble_constructive(nodes, Q, distances)
-    initial_solution, _, _ = info_of_all_routes(initial_solution_path, sheet_name)
-    for route_data in initial_solution:
-        route_data['route_objects'] = [nodes[node_index] for node_index in route_data['route_indexes']]
-    return [i['route_objects'] for i in initial_solution]
 
 def get_initial_solution(method, nodes, Q, distances, initial_solution_path, sheet_name):
     # Obtener la solución inicial con adaptación de datos similar a `constructive`
